@@ -240,6 +240,19 @@ input:focus {
     width: 100%;
 }
 
+/* ── Auth Form Card: width-constrained inner panel ── */
+.auth-form-card {
+    width: 100%;
+    max-width: var(--ds-card-max-width);
+    box-sizing: border-box;
+}
+
+/* ── Input Icon Wrapper: positioning context for icon + input ── */
+.input-icon-wrapper {
+    position: relative;
+    width: 100%;
+}
+
 /* ── Mobile Layout Media Queries ── */
 @media (max-width: 767px) {
     .auth-container {
