@@ -1031,11 +1031,6 @@ ${content}
     }
   };
 
-  const handleGenerateAlternateEndings = async () => {
-    if (!selectedStory) return;
-    clearError();
-    setIsGeneratingEndings(true);
-    const toastId = toast.loading("Generating alternate endings...");
   }, [stories]);
 
   useEffect(() => {
@@ -1135,9 +1130,6 @@ ${content}
 
       if (!res || !Array.isArray(res.data)) {
         throw new Error("Unexpected response format from the AI service.");
-      // Guard check validation
-      if (!res || !Array.isArray(res.data)) {
-        throw new Error("Invalid response from server");
       }
 
       setEndingsCache((prev) => ({ ...prev, [selectedStory.uuid]: res.data }));
@@ -1146,20 +1138,9 @@ ${content}
       console.error("[StoriesView Alternate Ending Flow Failure]:", err);
       const errObj = err as Record<string, any>;
       const errorStatus = errObj?.status || errObj?.data?.status;
-      setError(
-        errorStatus
-          ? getErrorMessage(new ApiError(errorStatus, errObj?.data?.message || ""))
-          : getErrorMessage(err)
-      );
-      toast.error("Failed to generate alternate endings.");
-    } finally {
-      toast.dismiss(toastId);
-      setIsGeneratingEndings(false);
-      const errorStatus = err?.status || err?.data?.status;
       const parsedMessage = errorStatus
-        ? getErrorMessage(new ApiError(errorStatus, err?.data?.message || ""))
+        ? getErrorMessage(new ApiError(errorStatus, errObj?.data?.message || ""))
         : err?.message || "An unexpected failure occurred.";
-      
       setErrorMessage(parsedMessage);
       toast.error("Failed to generate alternate endings.");
     } finally {
@@ -1170,14 +1151,6 @@ ${content}
 
   const handleApplyEnding = (endingData: { style: string; ending: string; fullStory: string }) => {
     if (!selectedStory) return;
-    const updatedStory = {
-      ...selectedStory,
-      content: endingData.fullStory,
-    };
-    setSelectedStory(updatedStory);
-    setStories(
-      stories.map((s) => (s.uuid === selectedStory.uuid ? updatedStory : s))
-    );
     const updatedStory = { ...selectedStory, content: endingData.fullStory };
     setSelectedStory(updatedStory);
     setStories(stories.map((s) => (s.uuid === selectedStory.uuid ? updatedStory : s)));
@@ -1699,221 +1672,6 @@ ${content}
       )}
 
       <Toaster position="top-right" reverseOrder={false} />
-    const updatedStory = { ...selectedStory, content: originalContent };
-    setSelectedStory(updatedStory);
-    setStories(stories.map((s) => (s.uuid === selectedStory.uuid ? updatedStory : s)));
-    toast.success("Reverted to original story ending!");
-  };
-
-  const handleExportPDF = async () => {
-    if (!selectedStory) { toast.error("No story available to export."); return; }
-    if (!selectedStory.content?.trim()) { toast.error("Story content is empty. Cannot export."); return; }
-    
-    setIsExportDropdownOpen(false);
-    const toastId = toast.loading("Preparing your premium PDF...");
-    
-    try {
-      const loadImageWithTimeout = (src: string, timeoutMs: number = 3000): Promise<HTMLImageElement> => {
-        return new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          const timeout = setTimeout(() => { img.src = ""; reject(new Error(`Timeout loading image: ${src}`)); }, timeoutMs);
-          img.onload = () => { clearTimeout(timeout); resolve(img); };
-          img.onerror = (e) => { clearTimeout(timeout); reject(e); };
-          img.src = src;
-        });
-      };
-
-      let logoImg: HTMLImageElement | null = null;
-      let storyImg: HTMLImageElement | null = null;
-
-      try { logoImg = await loadImageWithTimeout(logo); } catch (err) { console.warn("Failed to load logo", err); }
-      if (selectedStory.imageURL) {
-        try { storyImg = await loadImageWithTimeout(selectedStory.imageURL); } catch (err) { console.warn("Failed to load story banner", err); }
-      }
-
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const title = selectedStory.title || "Untitled Story";
-      const content = selectedStory.content || "";
-      const tag = (selectedStory.tag || "STORY").toUpperCase();
-      const leftMargin = 20, rightMargin = 20, topMargin = 20, bottomMargin = 20;
-      const printableWidth = 210 - leftMargin - rightMargin;
-      const maxY = 297 - bottomMargin - 10;
-      let yCursor = topMargin;
-
-      // Header
-      if (logoImg) {
-        const logoHeight = 8;
-        const logoWidth = (logoImg.width / logoImg.height) * logoHeight;
-        doc.addImage(logoImg, "PNG", leftMargin, yCursor, logoWidth, logoHeight);
-      } else {
-        doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(99, 102, 241);
-        doc.text("StorySparkAI", leftMargin, yCursor + 6);
-      }
-      
-      doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(148, 163, 184);
-      doc.text("PREMIUM AI GENERATED STORY", 190, yCursor + 5, { align: "right" });
-      yCursor += 10;
-      
-      doc.setDrawColor(99, 102, 241); doc.setLineWidth(0.5); doc.line(leftMargin, yCursor, 190, yCursor);
-      yCursor += 8;
-
-      // Story Banner Image
-      if (storyImg) {
-        const bannerHeight = 55;
-        doc.addImage(storyImg, "JPEG", leftMargin, yCursor, printableWidth, bannerHeight);
-        yCursor += bannerHeight + 8;
-      }
-
-      doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(30, 41, 59);
-      const splitTitle = doc.splitTextToSize(title, printableWidth);
-      splitTitle.forEach((line: string) => { doc.text(line, leftMargin, yCursor); yCursor += 9; });
-      yCursor += 1;
-
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
-      const formattedDate = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-      doc.text(`Generated on ${formattedDate}`, leftMargin, yCursor);
-      
-      doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
-      const tagWidth = doc.getTextWidth(tag);
-      const chipWidth = tagWidth + 5, chipHeight = 5, chipX = 190 - chipWidth, chipY = yCursor - 3.8;
-      doc.setFillColor(99, 102, 241); doc.roundedRect(chipX, chipY, chipWidth, chipHeight, 1, 1, "F");
-      doc.setTextColor(255, 255, 255); doc.text(tag, chipX + 2.5, chipY + 3.5);
-      
-      yCursor += 4.5;
-      doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.2); doc.line(leftMargin, yCursor, 190, yCursor);
-      yCursor += 10;
-
-      const paragraphs = content.split(/\n+/);
-      paragraphs.forEach((para: string, pIdx: number) => {
-        const cleanPara = para.trim();
-        if (!cleanPara) return;
-        const lines = doc.splitTextToSize(cleanPara, printableWidth);
-        lines.forEach((line: string) => {
-          if (yCursor > maxY) { doc.addPage(); yCursor = 30; }
-          doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(30, 41, 59);
-          doc.text(line, leftMargin, yCursor); yCursor += 6.5;
-        });
-        if (pIdx < paragraphs.length - 1) yCursor += 4.5;
-      });
-
-      const totalPages = doc.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i);
-        doc.setDrawColor(241, 245, 249); doc.setLineWidth(0.25); doc.line(leftMargin, 280, 190, 280);
-        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
-        doc.text("Generated with StorySparkAI", leftMargin, 285);
-        doc.text(`Page ${i} of ${totalPages}`, 190, 285, { align: "right" });
-        if (i > 1) {
-          doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(99, 102, 241);
-          doc.text("StorySparkAI", leftMargin, 14);
-          doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(148, 163, 184);
-          const headerTitle = title.length > 50 ? title.substring(0, 50) + "..." : title;
-          doc.text(headerTitle, 190, 14, { align: "right" });
-          doc.setDrawColor(241, 245, 249); doc.setLineWidth(0.2); doc.line(leftMargin, 17, 190, 17);
-        }
-      }
-
-      doc.save(getSafeFileName(title, "pdf"));
-      toast.dismiss(toastId);
-      toast.success("Premium PDF downloaded!");
-    } catch (error) {
-      console.error(error); 
-      toast.dismiss(toastId); 
-      toast.error("Failed to export PDF.");
-    }
-  };
-
-  const handleExportMarkdown = () => {
-    if (!selectedStory) { toast.error("No story available to export."); return; }
-    if (!selectedStory.content?.trim()) { toast.error("Story content is empty. Cannot export."); return; }
-    setIsExportDropdownOpen(false);
-
-    try {
-      const title = selectedStory.title || "Story";
-      const content = selectedStory.content || "";
-      const tag = selectedStory.tag || "General";
-      const authorName = isLogin && profile?.name ? profile.name : "Anonymous";
-      const isoDate = new Date().toISOString().split("T")[0];
-      const markdownContent = `---\ntitle: "${title.replace(/"/g, '\\"')}"\ntag: "${tag.replace(/"/g, '\\"')}"\nauthor: "${authorName.replace(/"/g, '\\"')}"\ndate: "${isoDate}"\n---\n\n# ${title}\n\n${content}\n`;
-      const blob = new Blob([markdownContent], { type: "text/markdown;charset=utf-8;" });
-
-      downloadBlob(blob, getSafeFileName(title, "md"));
-      toast.success("Markdown downloaded!");
-    } catch (error) { 
-      console.error(error); 
-      toast.error("Failed to export Markdown."); 
-    }
-  };
-
-  const handleExportDOCX = () => {
-    if (!selectedStory) { toast.error("No story available to export."); return; }
-    if (!selectedStory.content?.trim()) { toast.error("Story content is empty. Cannot export."); return; }
-    setIsExportDropdownOpen(false);
-    
-    try {
-      const title = selectedStory.title || "Untitled Story";
-      const docxBlob = createDocxBlob({
-        title,
-        content: selectedStory.content || "",
-        tag: selectedStory.tag || "Story",
-        author: isLogin && profile?.name ? profile.name : "Anonymous",
-      });
-      downloadBlob(docxBlob, getSafeFileName(title, "docx"));
-      toast.success("DOCX downloaded!");
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to export DOCX.");
-    }
-  };
-
-  const handelPublishStory = async () => {
-    if (!isLogin) { toast.error("Please login to publish the story."); return; }
-    if (!selectedStory) { toast.error("No story available. Please generate a story first."); return; }
-    if (selectTopics.length < 2) { toast.error("Please select at least 2 topics."); return; }
-    
-    const post: IPost = { ...selectedStory, topic: selectTopics, isPublished: true };
-    setLoading(true);
-    
-    try {
-      if (savedPostIdRef.current) {
-        try { await deletePost(savedPostIdRef.current).unwrap(); }
-        catch (deleteError) { console.warn("Failed to delete draft:", deleteError); }
-      }
-      const result = await createPost(post).unwrap();
-      if (result) { 
-        toast.success("Story published successfully!"); 
-        setStories([]); 
-        setSelectedStory(null); 
-        onPublishSuccess?.(); 
-      }
-    } catch { 
-      toast.error("Something went wrong. Please try again."); 
-    } finally { 
-      setLoading(false); 
-    }
-  };
-
-  const isNarrationActive = narrationState !== "idle";
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <StoryGeneratingAnimation />
-      </div>
-    );
-  }
-
-  if (!stories || !stories.length || !selectedStory) {
-    return (
-      <div className="w-full text-center text-slate-400 dark:text-slate-500 py-16">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 text-sm font-medium">
-          No stories generated yet. Start by entering a prompt ✨
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="w-full min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-8 pb-16 relative overflow-hidden box-border">
       <Toaster position="top-right" reverseOrder={false} />
