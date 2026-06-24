@@ -43,14 +43,8 @@ import ScrollToTop from "./components/ScrollToTop";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import SettingComponent from "./components/dashboard/settings/settings.component";
 import SignUpComponent from "./components/signup/signup.component";
-import SimpleProtectedRoute from "./components/ProtectedRoute";
 import StoriesComponent from "./components/stories/stories.component";
 import ChatPage from "./components/chat/ChatPage";
-
-type ProtectedRouteProps = {
-  allowedRoles: string[];
-  element?: React.ReactElement;
-};
 
 // Lazy-loaded page components
 const TemplatesComponent = lazy(() => import("./components/templates/templates.component"));
@@ -93,7 +87,7 @@ const AnalyticsPage = lazy(() => import("./components/dashboard/analytics/analyt
 const PostListsComponent = lazy(() => import("./components/dashboard/posts/post_lists.component"));
 const EmailValidationComponent = lazy(() => import("./components/email_validation/email.validation.component"));
 const PaymentComponent = lazy(() => import("./components/home/pricing/payment.component"));
-const SearchPageComponent = lazy(() => import("./pages/analytics/SearchPage"));
+
 const ChatPage = lazy(() => import("./components/chat/ChatPage"));
 const StoryConsistencyGuardian = lazy(() => import("./components/story-consistency/StoryConsistencyGuardian"));
 

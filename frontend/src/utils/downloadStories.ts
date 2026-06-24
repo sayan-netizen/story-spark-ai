@@ -1,4 +1,11 @@
-export const downloadTXT = (story: any) => {
+interface Story {
+  title: string;
+  prompt: string;
+  content: string;
+}
+
+export const downloadTXT = (story: Story) => {
+
   if (typeof window === "undefined") {
     return;
   }

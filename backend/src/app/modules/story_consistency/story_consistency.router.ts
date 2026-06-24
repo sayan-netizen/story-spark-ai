@@ -36,4 +36,5 @@ router.post(
   StoryConsistencyController.trackFacts
 );
 
+
 export const StoryConsistencyRouter = router;
